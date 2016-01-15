@@ -1,5 +1,5 @@
 var Bignum = (function(){ //immediately involked
-	var MAX_INT = 1<<62;
+	var MAX_INT = Math.pow(2, 52); 
 
 	function Bignum(sign, digits){
 		this.sign = sign;
@@ -38,6 +38,14 @@ var Bignum = (function(){ //immediately involked
 		if(typeof from === "string"){return createFromString(from);}
 		throw new Error("Unrecognised type for Bignum creation");
 	}
+
+	Bignum.prototype.toNumber = function() {
+		var num = 0;
+		for (var i = 0; i < this.digits.length; i++) {
+			num = num * MAX_INT + this.digits[i];
+		};
+		return num * this.sign;
+	};
 
 	Bignum.prototype.compare = function(b){ //returns 0 if a==b, +ve if a>b, -ve if a<b
 		var a = this;
@@ -89,12 +97,12 @@ var Bignum = (function(){ //immediately involked
 		return new Bignum(-this.sign, this.digits);
 	};
 	Bignum.prototype.subtract = function (b) {
-		return this.add(b.negate());
+		return this.add(create(b).negate());
 	};
 
 	function addDigits (a, b) {
 		var digits = [], carry = 0;
-		for(var i = 1; i <= a.length && i <= b.length; i++){
+		for(var i = 1; i <= a.length || i <= b.length; i++){
 			var nexta = (i > a.length) ? 0 : a[a.length - i],
 			    nextb = (i > b.length) ? 0 : b[b.length - i],
 			    next = nexta + nextb + carry;
@@ -128,6 +136,43 @@ var Bignum = (function(){ //immediately involked
 		}
 		return digits;
 	}	
+
+	Bignum.prototype.multiply = function(b){
+		var a = this;
+		b = create(b);
+		if(a.sign === 0 || b.sign === 0){
+			return create(0);
+		}
+		else{
+			return new Bignum(a.sign * b.sign, multiplyDigits(a.digits, b.digits));
+		}
+	}
+
+	function multiplyDigits(a, b){
+		var result = [];
+		for (var i = 0; i < a.length; i++) {
+			result = addDigits(result, multiplyOneByManyDigits(a[i], b, a.length - i - 1));
+		};
+		return result;
+	}
+	function multiplyOneByManyDigits(a1, b, trailingZeroes){
+		var carry = 0, digits = [];
+
+		for (var i = b.length - 1; i >= 0; i--) {
+			var next = a1 * b[i] + carry;
+			carry = Math.floor(next / MAX_INT);
+			next = next % MAX_INT;
+			digits.unshift(next);
+		};
+
+		if(carry > 0){
+			digits.unshift(carry);
+		}
+		for (var i = 0; i < trailingZeroes; i++) {
+			digits.push(0);
+		};
+		return digits;
+	}
 
 
 	//From main function
